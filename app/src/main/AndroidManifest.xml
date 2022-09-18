@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.qianmianrenxilie">
+
+    <queries>
+        <package android:name="com.lzm.qianmianren" />
+    </queries>
+
+
+    <!-- 联网权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 前台服务权限-保活用的 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- 震动权限 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!--    是否拥有出现在“出现在其他应用上”权限的方法。-->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!--    以下两个是显示在其他应用上层时用到的权限-->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.SYSTEM_OVERLAY_WINDOW" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/qmr"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/qmr"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.QianMianRenXiLie"
+        android:usesCleartextTraffic="true">
+        <activity android:name=".MainActivity"
+            android:launchMode="singleTask">
+            <!--
+android:launchMode="singleTask"：Task内单例模式，解决点击状态栏返回到activity时，重新执行OnCreate方法
+可参考：https://blog.csdn.net/u010694658/article/details/51029114?utm_medium=distribute.pc_relevant_t0.none-task-blog
+-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.essearch_pc_relevant&depth_1-utm_source=distribute.pc_rele
+vant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromMachineLearnPai2%7Edefault-1.essearch_pc_relevant
+-->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!--
+service 标签下第一个 name 就是我们创建的前台服务类，这里写你自己的类名，前面的点表示当前包名下
+enabled 表示是否启用
+foregroundServiceType 表示前台服务类型，这个参数很多人忘记写导致前台服务会被系统杀死
+-->
+        <service
+            android:name=".service.KeepAliveService"
+            android:enabled="true"
+            android:foregroundServiceType="location" />
+    </application>
+
+</manifest>
