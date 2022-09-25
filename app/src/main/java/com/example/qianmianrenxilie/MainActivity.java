@@ -679,9 +679,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         if("0".equals(j.getString("code"))){
                             JSONObject json = j.getJSONObject("data");
 
-                            JSONArray arr = json.getJSONArray("tp_rgoods_list");
+                            JSONArray arr = json.getJSONArray("tp_rgoods_list");  //副商品
+                            JSONArray jingPinArr = json.getJSONArray("tp_cgoods_list");  //竞品
+                            String zhaoCha = json.getString("tp_goods_compare_word");  //找茬答案
 
-                            String zhaoCha = json.getString("tp_goods_compare_word");
                             //这个有时候是脱敏的
 //                            String dianPuMing = json.getString("ms_store_name");
                             receiveSuccess(dianPuMing);
@@ -700,6 +701,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 sendLog("-------------------------");
                                 JSONObject f = arr.getJSONObject(i);
                                 sendLog("副商品全标题"+i+"："+f.getString("rg_name"));
+                            }
+                            for (int i = 0; i < jingPinArr.size(); i++) {
+                                sendLog("-------------------------");
+                                JSONObject f = jingPinArr.getJSONObject(i);
+                                sendLog("竞品全标题"+i+"："+f.getString("cg_name"));
                             }
                         }
                     }
