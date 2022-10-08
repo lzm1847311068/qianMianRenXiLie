@@ -678,16 +678,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         JSONObject j = JSONObject.parseObject(response.body());
                         if("0".equals(j.getString("code"))){
                             JSONObject json = j.getJSONObject("data");
-
+                            //3应该是多日任务，1是当天任务
+                            String taskType = json.getString("tp_type");
                             JSONArray arr = json.getJSONArray("tp_rgoods_list");  //副商品
                             JSONArray jingPinArr = json.getJSONArray("tp_cgoods_list");  //竞品
                             String zhaoCha = json.getString("tp_goods_compare_word");  //找茬答案
-
                             //这个有时候是脱敏的
 //                            String dianPuMing = json.getString("ms_store_name");
                             receiveSuccess(dianPuMing);
                             sendLog("-------------------------");
-                            sendLog("关键词："+json.getString("t_keywords"));
+                            if("1".equals(taskType)){
+                                sendLog("关键词："+json.getString("t_keywords"));
+                            }else if("3".equals(taskType)){
+                                JSONObject gjc = json.getJSONObject("t_keywords_list");
+                                sendLog("第一天关键词："+gjc.getString("word"));
+                                sendLog("第二天关键词："+gjc.getString("word02"));
+                            }
                             sendLog("-------------------------");
                             if(zhaoCha != ""){
                                 sendLog("找茬答案："+json.getString("tp_goods_compare_word"));
