@@ -74,9 +74,6 @@ import java.util.stream.Collectors;
  * 停止接单取消所有网络请求
  * 远程公告、频率等
  * try catch
- * 多买号情况下，不选择买号接单的问题
- *
- * 这个模式都用这套代码
  */
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -336,21 +333,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject loginJsonObj = JSONObject.parseObject(response.body());
-                        if("0".equals(loginJsonObj.getString("code"))){
-                            smsLin.setVisibility(View.GONE);
-                            //保存账号和密码
-                            saveUserInfo(username,password,uName);
-                            sendLog("登录成功");
-                            //获取token
-                            Authorization = loginJsonObj.getJSONObject("data").getString("jwt");
-                            checkAcconut();
-                            return;
-                        }else if(406 == loginJsonObj.getInteger("code")){
-                            sendLog(loginJsonObj.getString("message"));
-                            getSmsCode();
-                        }else {
-                            sendLog(loginJsonObj.getString("message"));
+                        try {
+                            JSONObject loginJsonObj = JSONObject.parseObject(response.body());
+                            if("0".equals(loginJsonObj.getString("code"))){
+                                smsLin.setVisibility(View.GONE);
+                                //保存账号和密码
+                                saveUserInfo(username,password,uName);
+                                sendLog("登录成功");
+                                //获取token
+                                Authorization = loginJsonObj.getJSONObject("data").getString("jwt");
+                                checkAcconut();
+                                return;
+                            }else if(406 == loginJsonObj.getInteger("code")){
+                                sendLog(loginJsonObj.getString("message"));
+                                getSmsCode();
+                            }else {
+                                sendLog(loginJsonObj.getString("message"));
+                            }
+                        }catch (Exception e){
+                            sendLog("登录："+e.getMessage());
                         }
                     }
                 });
@@ -366,13 +367,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if (0 == obj.getInteger("code")){
-                            smsLin.setVisibility(View.VISIBLE);
-                            sendLog("发送验证码成功，请输入验证码后再次登录");
-                            return;
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if (0 == obj.getInteger("code")){
+                                smsLin.setVisibility(View.VISIBLE);
+                                sendLog("发送验证码成功，请输入验证码后再次登录");
+                                return;
+                            }
+                            sendLog(obj.getString("message"));
+                        }catch (Exception e){
+                            sendLog("短信异常："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
                     }
                 });
     }
@@ -389,18 +394,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if (0 == obj.getInteger("code")){
-                            String info = obj.getJSONObject("data").getString("report_desc");
-                            if (!"".equals(info)){
-                                sendLog(info);
-                                playMusic(JIE_DAN_FAIL,3000,0);
-                            }else {
-                                getTbInfo();
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if (0 == obj.getInteger("code")){
+                                String info = obj.getJSONObject("data").getString("report_desc");
+                                if (!"".equals(info)){
+                                    sendLog(info);
+                                    playMusic(JIE_DAN_FAIL,3000,0);
+                                }else {
+                                    getTbInfo();
+                                }
+                                return;
                             }
-                            return;
+                            sendLog(obj.getString("message"));
+                        }catch (Exception e){
+                            sendLog("checkAcconut："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
                     }
                 });
     }
@@ -414,38 +423,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if (0 == obj.getInteger("code")){
-                            JSONArray tbArr = obj.getJSONObject("data").getJSONArray("items");
-                            buyerNumList.clear();
-                            for (int i = 0; i < tbArr.size(); i++) {
-                                JSONObject tbInfo = tbArr.getJSONObject(i);
-                                /**
-                                 * 1等待审核   2通过审核
-                                 * 1淘宝   4京东
-                                 */
-                                if("2".equals(tbInfo.getString("bbi_status"))){
-                                    if ("1".equals(tbInfo.getString("bbi_platform_id"))){
-                                        String tbId = tbInfo.getString("bbi_id");
-                                        String tbName = tbInfo.getString("bbi_id_index_str");
-                                        buyerNumList.add(new BuyerNum(tbId,tbName));
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if (0 == obj.getInteger("code")){
+                                JSONArray tbArr = obj.getJSONObject("data").getJSONArray("items");
+                                buyerNumList.clear();
+                                for (int i = 0; i < tbArr.size(); i++) {
+                                    JSONObject tbInfo = tbArr.getJSONObject(i);
+                                    /**
+                                     * 1等待审核   2通过审核
+                                     * 1淘宝   4京东
+                                     */
+                                    if("2".equals(tbInfo.getString("bbi_status"))){
+                                        if ("1".equals(tbInfo.getString("bbi_platform_id"))){
+                                            String tbId = tbInfo.getString("bbi_id");
+                                            String tbName = tbInfo.getString("bbi_id_index_str");
+                                            buyerNumList.add(new BuyerNum(tbId,tbName));
+                                        }
                                     }
                                 }
+                                if(buyerNumList.size() == 0){
+                                    sendLog("无可用接单账号");
+                                    return;
+                                }
+                                sendLog("获取到"+buyerNumList.size()+"个可用淘宝号");
+                                tbNameArr = new String[buyerNumList.size()+1];
+                                tbNameArr[0] = "自动切换买号";
+                                for (int i = 0; i < buyerNumList.size(); i++){
+                                    tbNameArr[i+1] = buyerNumList.get(i).getName();
+                                }
+                                showSingleAlertDialog();
                             }
-                            if(buyerNumList.size() == 0){
-                                sendLog("无可用接单账号");
-                                return;
-                            }
-                            sendLog("获取到"+buyerNumList.size()+"个可用淘宝号");
-
-                            tbNameArr = new String[buyerNumList.size()+1];
-                            tbNameArr[0] = "自动切换买号";
-
-                            for (int i = 0; i < buyerNumList.size(); i++){
-                                tbNameArr[i+1] = buyerNumList.get(i).getName();
-                            }
-
-                            showSingleAlertDialog();
+                        }catch (Exception e){
+                            sendLog("getTbInfo："+e.getMessage());
                         }
                     }
                 });
@@ -519,19 +529,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        //{"code":0,"data":{"report_desc":"您已经通过考试","report_status":true,"params":[]},"message":""}
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if (0 == obj.getInteger("code")){
-                            boolean isStart = obj.getJSONObject("data").getBoolean("report_status");
-                            if(!isStart){
-                                sendLog("请先去平台，个人中心，我的考试，完成考试在接单！");
-                                playMusic(JIE_DAN_FAIL,3000,0);
+                        try {
+                            //{"code":0,"data":{"report_desc":"您已经通过考试","report_status":true,"params":[]},"message":""}
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if (0 == obj.getInteger("code")){
+                                boolean isStart = obj.getJSONObject("data").getBoolean("report_status");
+                                if(!isStart){
+                                    sendLog("请先去平台，个人中心，我的考试，完成考试在接单！");
+                                    playMusic(JIE_DAN_FAIL,3000,0);
+                                    return;
+                                }
+                                checkAccount();
                                 return;
                             }
-                            checkAccount();
-                            return;
+                            sendLog(obj.getString("message"));
+                        }catch (Exception e){
+                            sendLog("checkKaoShi："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
                     }
                 });
     }
@@ -550,19 +564,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if(0 == obj.getInteger("code")){
-                            String msg = obj.getJSONObject("data").getString("u_tips");
-                            if(!"".equals(msg)){
-                                playMusic(JIE_DAN_FAIL,3000,0);
-                                sendLog(msg);
-                            }else {
-                                getTask();
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if(0 == obj.getInteger("code")){
+                                String msg = obj.getJSONObject("data").getString("u_tips");
+                                if(!"".equals(msg)){
+                                    playMusic(JIE_DAN_FAIL,3000,0);
+                                    sendLog(msg);
+                                }else {
+                                    getTask();
+                                }
+                                return;
                             }
-                            return;
+                            sendLog(obj.getString("message"));
+                            playMusic(JIE_DAN_FAIL,3000,0);
+                        }catch (Exception e){
+                            sendLog("checkAccount："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
-                        playMusic(JIE_DAN_FAIL,3000,0);
                     }
                 });
     }
@@ -603,28 +621,33 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     @Override
                     public void onSuccess(Response<String> response) {
                         JSONObject obj = JSONObject.parseObject(response.body());
-                        if("0".equals(obj.getString("code"))){
-                            sendLog("获取任务中...");
-                            JSONArray arr = obj.getJSONObject("data").getJSONArray("items");
-                            if(arr.size() != 0){
-                                for (int i = 0; i < arr.size(); i++) {
-                                    JSONObject j = arr.getJSONObject(i);
-                                    /**
-                                     * 刚接到的是2，两日任务第一日做完这里变成了10
-                                     */
-                                    if("2".equals(j.getString("ut_status"))){
-                                        sendLog("接单成功");
-                                        playMusic(JIE_DAN_SUCCESS,3000,2);
-                                        getTaskDetail(j.getString("ut_id"),j.getString("ms_store_name"));
+                        try {
+                            if("0".equals(obj.getString("code"))){
+                                sendLog("获取任务中...");
+                                JSONArray arr = obj.getJSONObject("data").getJSONArray("items");
+                                if(arr.size() != 0){
+                                    for (int i = 0; i < arr.size(); i++) {
+                                        JSONObject j = arr.getJSONObject(i);
+                                        /**
+                                         * 刚接到的是2，两日任务第一日做完这里变成了10
+                                         */
+                                        if("2".equals(j.getString("ut_status"))){
+                                            sendLog("接单成功");
+                                            playMusic(JIE_DAN_SUCCESS,3000,2);
+                                            getTaskDetail(j.getString("ut_id"),j.getString("ms_store_name"));
+                                        }
                                     }
+                                    return;
                                 }
+                                jieDan();
                                 return;
                             }
-                            jieDan();
-                            return;
+                            sendLog(obj.getString("message"));
+                            playMusic(JIE_DAN_FAIL,3000,0);
+                        }catch (Exception e){
+                            sendLog("checkTask："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
-                        playMusic(JIE_DAN_FAIL,3000,0);
+
                     }
                 });
     }
@@ -638,30 +661,34 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if("0".equals(obj.getString("code"))){
-                            JSONArray arr = obj.getJSONObject("data").getJSONArray("items");
-                            if(arr.size() != 0){
-                                for (int i = 0; i < arr.size(); i++) {
-                                    JSONObject j = arr.getJSONObject(i);
-                                    /**
-                                     * 刚接到的是2，两日任务第一日做完这里变成了10
-                                     * 第二日在可以点击继续任务后，多了个字段"tp_pay_target": "2",
-                                     */
-                                    if("2".equals(j.getString("ut_status"))){
-                                        getTaskDetail(j.getString("ut_id"),j.getString("ms_store_name"));
-                                    }else if("10".equals(j.getString("ut_status"))){
-                                        if(j.containsKey("tp_pay_target")){
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if("0".equals(obj.getString("code"))){
+                                JSONArray arr = obj.getJSONObject("data").getJSONArray("items");
+                                if(arr.size() != 0){
+                                    for (int i = 0; i < arr.size(); i++) {
+                                        JSONObject j = arr.getJSONObject(i);
+                                        /**
+                                         * 刚接到的是2，两日任务第一日做完这里变成了10
+                                         * 第二日在可以点击继续任务后，多了个字段"tp_pay_target": "2",
+                                         */
+                                        if("2".equals(j.getString("ut_status"))){
                                             getTaskDetail(j.getString("ut_id"),j.getString("ms_store_name"));
+                                        }else if("10".equals(j.getString("ut_status"))){
+                                            if(j.containsKey("tp_pay_target")){
+                                                getTaskDetail(j.getString("ut_id"),j.getString("ms_store_name"));
+                                            }
                                         }
                                     }
+                                    return;
                                 }
+                                sendLog("此接单账号暂时无可代操作任务！");
                                 return;
                             }
-                            sendLog("此接单账号暂时无可代操作任务！");
-                            return;
+                            sendLog(obj.getString("message"));
+                        }catch (Exception e){
+                            sendLog("checkTask2："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
                     }
                 });
     }
@@ -675,44 +702,55 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
+                        try {
                         JSONObject j = JSONObject.parseObject(response.body());
-                        if("0".equals(j.getString("code"))){
-                            JSONObject json = j.getJSONObject("data");
-                            //3应该是多日任务，1是当天任务
-                            String taskType = json.getString("tp_type");
-                            JSONArray arr = json.getJSONArray("tp_rgoods_list");  //副商品
-                            JSONArray jingPinArr = json.getJSONArray("tp_cgoods_list");  //竞品
-                            String zhaoCha = json.getString("tp_goods_compare_word");  //找茬答案
-                            //这个有时候是脱敏的
-//                            String dianPuMing = json.getString("ms_store_name");
-                            receiveSuccess(dianPuMing);
-                            sendLog("-------------------------");
-                            if("1".equals(taskType)){
-                                sendLog("关键词："+json.getString("t_keywords"));
-                            }else if("3".equals(taskType)){
-                                JSONObject gjc = json.getJSONObject("t_keywords_list");
-                                sendLog("第一天关键词："+gjc.getString("word"));
-                                sendLog("第二天关键词："+gjc.getString("word02"));
-                            }
-                            sendLog("-------------------------");
-                            if(zhaoCha != ""){
-                                sendLog("找茬答案："+json.getString("tp_goods_compare_word"));
-                                sendLog("-------------------------");
-                            }
-                            sendLog("商品全标题："+json.getString("g_name"));
-                            sendLog("-------------------------");
-                            sendLog("店铺名："+dianPuMing);
+                            if("0".equals(j.getString("code"))){
+                                JSONObject json = j.getJSONObject("data");
+                                //3应该是多日任务，1是当天任务，5是交付任务（应该也是多天完成）
+                                String taskType = json.getString("tp_type");
+                                JSONArray arr = json.getJSONArray("tp_rgoods_list");  //副商品
+                                JSONArray jingPinArr = json.getJSONArray("tp_cgoods_list");  //竞品
+                                String zhaoCha = json.getString("tp_goods_compare_word");  //找茬答案
+                                //这个有时候是脱敏的
+    //                            String dianPuMing = json.getString("ms_store_name");
+                                receiveSuccess(dianPuMing);
+                                sendLog1("-------------------------");
+                                if("1".equals(taskType)){
+                                    sendLog1("关键词："+json.getString("t_keywords"));
+                                }else if("3".equals(taskType)){
+                                    JSONObject gjc = json.getJSONObject("t_keywords_list");
+                                    sendLog1("第一天关键词："+gjc.getString("word"));
+                                    sendLog1("第二天关键词："+gjc.getString("word02"));
+                                }else if("5".equals(taskType)){
+                                    sendLog1("关键词："+json.getString("t_keywords"));
+                                    sendLog1("目标商品链接："+json.getString("tp_g_url"));
+                                }
+                                sendLog1("-------------------------");
+                                if(zhaoCha != ""){
+                                    sendLog1("找茬答案："+json.getString("tp_goods_compare_word"));
+                                    sendLog1("-------------------------");
+                                }
+                                sendLog1("商品全标题："+json.getString("g_name"));
+                                sendLog1("-------------------------");
+                                sendLog1("店铺名："+dianPuMing);
 
-                            for (int i = 0; i < arr.size(); i++) {
-                                sendLog("-------------------------");
-                                JSONObject f = arr.getJSONObject(i);
-                                sendLog("副商品全标题"+i+"："+f.getString("rg_name"));
+                                for (int i = 0; i < arr.size(); i++) {
+                                    sendLog1("-------------------------");
+                                    JSONObject f = arr.getJSONObject(i);
+                                    sendLog1("副商品全标题"+i+"："+f.getString("rg_name"));
+                                    String zc = f.getString("rg_compare_word");
+                                    if(zc != ""){
+                                        sendLog1("副商品找茬"+i+"："+zc);
+                                    }
+                                }
+                                for (int i = 0; i < jingPinArr.size(); i++) {
+                                    sendLog1("-------------------------");
+                                    JSONObject f = jingPinArr.getJSONObject(i);
+                                    sendLog1("竞品全标题"+i+"："+f.getString("cg_name"));
+                                }
                             }
-                            for (int i = 0; i < jingPinArr.size(); i++) {
-                                sendLog("-------------------------");
-                                JSONObject f = jingPinArr.getJSONObject(i);
-                                sendLog("竞品全标题"+i+"："+f.getString("cg_name"));
-                            }
+                        }catch (Exception e){
+                            sendLog("getTaskDetail："+e.getMessage());
                         }
                     }
                 });
@@ -771,21 +809,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(Response<String> response) {
-                        JSONObject obj = JSONObject.parseObject(response.body());
-                        if(0 == obj.getInteger("code")){
-                            if("1".equals(biaoZhi)){
-                                mHandler.postDelayed(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        getTask();
-                                    }
-                                }, 5000);
+                        try {
+                            JSONObject obj = JSONObject.parseObject(response.body());
+                            if(0 == obj.getInteger("code")){
+                                if("1".equals(biaoZhi)){
+                                    mHandler.postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            getTask();
+                                        }
+                                    }, 5000);
+                                    return;
+                                }
+                                sendLog("已停止接单");
                                 return;
                             }
-                            sendLog("已停止接单");
-                            return;
+                            sendLog(obj.getString("message"));
+                        }catch (Exception e){
+                            sendLog("stopTask："+e.getMessage());
                         }
-                        sendLog(obj.getString("message"));
                     }
                 });
     }
@@ -810,9 +852,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      * @param milliseconds 需要震动的毫秒数
      */
     private void playMusic(int voiceResId, long milliseconds,int total){
-
         count = total;//不然会循环播放
-
         //播放语音
         MediaPlayer player = MediaPlayer.create(MainActivity.this, voiceResId);
         player.start();
@@ -822,11 +862,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 //播放完成事件
                 if(count != 0){
                     player.start();
+                    count --;
                 }
-                count --;
             }
         });
-
         //震动
         Vibrator vib = (Vibrator) this.getSystemService(Service.VIBRATOR_SERVICE);
         //延迟的毫秒数
@@ -856,13 +895,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
 
-
     /**
      * 日志更新
      * @param log
      */
+    public void sendLog1(String log){
+        scrollToTvLog();
+        tvLog.append(new SimpleDateFormat("HH:mm:ss").format(new Date()) + ": "+log+"\n");
+    }
+
+
     public void sendLog(String log){
         scrollToTvLog();
+        if(tvLog.getLineCount() > 40){
+            tvLog.setText("");
+        }
         tvLog.append(new SimpleDateFormat("HH:mm:ss").format(new Date()) + ": "+log+"\n");
     }
 
